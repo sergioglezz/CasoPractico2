@@ -1,0 +1,51 @@
+---
+# Rol ACR: gestiona las imágenes del Azure Container Registry
+
+# 1. Login en el ACR usando las credenciales de Azure CLI
+- name: Login en el Azure Container Registry
+  containers.podman.podman_login:
+    registry: "{{ acr_server }}"
+    username: "{{ acr_name }}"
+    password: "{{ acr_password }}"
+
+# 2. Descargar imagen del servidor web desde DockerHub
+- name: Pull imagen nginx desde DockerHub
+  containers.podman.podman_image:
+    name: nginx
+    tag: latest
+    state: present
+
+# 3. Etiquetar imagen nginx con el nombre del ACR y version casopractico2
+- name: Tag imagen nginx para el ACR
+  containers.podman.podman_tag:
+    image: nginx:latest
+    target_names:
+      - "{{ acr_server }}/webserver/nginx:casopractico2"
+
+# 4. Subir imagen nginx al ACR
+- name: Push imagen nginx al ACR
+  containers.podman.podman_image:
+    name: "{{ acr_server }}/webserver/nginx:casopractico2"
+    push: true
+    state: present
+
+# 5. Descargar imagen Redis desde DockerHub (app con persistencia)
+- name: Pull imagen redis desde DockerHub
+  containers.podman.podman_image:
+    name: docker.io/library/redis
+    tag: "6.0.8"
+    state: present
+
+# 6. Etiquetar imagen redis para el ACR
+- name: Tag imagen redis para el ACR
+  containers.podman.podman_tag:
+    image: "docker.io/library/redis:6.0.8"
+    target_names:
+      - "{{ acr_server }}/app/redis:casopractico2"
+
+# 7. Subir imagen redis al ACR
+- name: Push imagen redis al ACR
+  containers.podman.podman_image:
+    name: "{{ acr_server }}/app/redis:casopractico2"
+    push: true
+    state: present

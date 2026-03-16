@@ -1,0 +1,37 @@
+---
+# Playbook principal
+# Orquesta los tres roles: ACR, VM y AKS
+
+# ROL ACR 
+# Se ejecuta en local — gestiona las imágenes del registro privado
+- name: Setup ACR e imágenes
+  hosts: acr
+  vars_files:
+    - secrets.yml
+  tasks:
+    - name: Gestionar imágenes en el ACR
+      include_role:
+        name: acr
+
+# ROL VM 
+# Se ejecuta en la VM remota — instala Podman y despliega el servidor web
+- name: Setup servidor web en VM
+  hosts: vm
+  become: true
+  vars_files:
+    - secrets.yml
+  tasks:
+    - name: Configurar VM con Podman y desplegar servidor web
+      include_role:
+        name: vm
+
+# ROL AKS 
+# Se ejecuta en local — despliega la aplicación en Kubernetes
+- name: Setup aplicación en AKS
+  hosts: aks
+  vars_files:
+    - secrets.yml
+  tasks:
+    - name: Desplegar aplicación en AKS
+      include_role:
+        name: aks

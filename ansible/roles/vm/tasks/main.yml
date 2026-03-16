@@ -1,0 +1,38 @@
+---
+# Rol VM: instala Podman y despliega el servidor web en contenedor
+
+# 1. Actualizar repositorios del sistema
+- name: Actualizar repositorios apt
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+# 2. Instalar Podman
+- name: Instalar Podman
+  ansible.builtin.apt:
+    name: podman
+    state: present
+
+# 3. Login en el ACR desde la VM
+- name: Login en el ACR
+  containers.podman.podman_login:
+    registry: "{{ acr_server }}"
+    username: "{{ acr_name }}"
+    password: "{{ acr_password }}"
+
+# 4. Descargar imagen nginx desde el ACR
+- name: Pull imagen nginx desde el ACR
+  containers.podman.podman_image:
+    name: "{{ acr_server }}/webserver/nginx:casopractico2"
+    state: present
+
+# 5. Arrancar el contenedor nginx como servicio
+- name: Arrancar contenedor nginx con Podman
+  containers.podman.podman_container:
+    name: webserver
+    image: "{{ acr_server }}/webserver/nginx:casopractico2"
+    state: started
+    restart_policy: always
+    ports:
+      - "80:80"
+      - "443:443"

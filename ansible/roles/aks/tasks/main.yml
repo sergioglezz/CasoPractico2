@@ -1,0 +1,123 @@
+---
+# Rol AKS: despliega la aplicación con persistencia en Kubernetes
+
+# 1. Crear namespace para la aplicación
+- name: Crear namespace casopractico2
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: casopractico2
+        labels:
+          environment: casopractico2
+
+# 2. Crear secret para autenticarse en el ACR
+- name: Crear secret de acceso al ACR
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: acr-secret
+        namespace: casopractico2
+      type: kubernetes.io/dockerconfigjson
+      data:
+        .dockerconfigjson: "{{ {'auths': {acr_server: {'username': acr_name, 'password': acr_password}}} | to_json | b64encode }}"
+
+# 3. Crear PersistentVolumeClaim para Redis
+- name: Crear PersistentVolumeClaim para Redis
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-pvc
+        namespace: casopractico2
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+
+# 4. Desplegar Redis como backend con almacenamiento persistente
+- name: Desplegar Redis con almacenamiento persistente
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis
+        namespace: casopractico2
+        labels:
+          app: redis
+          environment: casopractico2
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: redis
+        template:
+          metadata:
+            labels:
+              app: redis
+          spec:
+            imagePullSecrets:
+              - name: acr-secret
+            containers:
+              - name: redis
+                image: "{{ acr_server }}/app/redis:casopractico2"
+                ports:
+                  - containerPort: 6379
+                env:
+                  - name: ALLOW_EMPTY_PASSWORD
+                    value: "yes"
+                volumeMounts:
+                  - name: redis-storage
+                    mountPath: /data
+            volumes:
+              - name: redis-storage
+                persistentVolumeClaim:
+                  claimName: redis-pvc
+
+# 5. Crear Service para Redis (acceso interno)
+- name: Crear Service para Redis
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: redis
+        namespace: casopractico2
+      spec:
+        selector:
+          app: redis
+        ports:
+          - port: 6379
+            targetPort: 6379
+
+# 6. Crear Service LoadBalancer para exponer Redis al exterior
+- name: Crear LoadBalancer para acceso externo
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: redis-lb
+        namespace: casopractico2
+        labels:
+          environment: casopractico2
+      spec:
+        type: LoadBalancer
+        selector:
+          app: redis
+        ports:
+          - port: 6379
+            targetPort: 6379
