@@ -33,6 +33,23 @@
     image: "{{ acr_server }}/webserver/nginx:casopractico2"
     state: started
     restart_policy: always
+    recreate: true
     ports:
       - "80:80"
       - "443:443"
+
+# 6. Generar fichero de servicio systemd para el contenedor
+- name: Generar servicio systemd para el contenedor nginx
+  ansible.builtin.shell: |
+    podman generate systemd --name webserver --files --new
+    mv container-webserver.service /etc/systemd/system/
+  args:
+    chdir: /tmp
+
+# 7. Recargar systemd y habilitar el servicio
+- name: Habilitar y arrancar servicio systemd del contenedor
+  ansible.builtin.systemd:
+    name: container-webserver
+    enabled: true
+    state: started
+    daemon_reload: true
